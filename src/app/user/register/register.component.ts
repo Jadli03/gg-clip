@@ -29,8 +29,8 @@ export class RegisterComponent {
   ])
   phoneNumber = new FormControl('', [
     Validators.required,
-    Validators.min(12),
-    Validators.max(12)
+    Validators.minLength(10),
+    Validators.maxLength(10)
   ])
   showAlert = false;
   alertMsg = 'Please Wait! Your Account is being created';
