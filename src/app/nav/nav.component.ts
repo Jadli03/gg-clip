@@ -1,0 +1,16 @@
+import { Component } from '@angular/core';
+import { ModalService } from '../services/modal.service';
+
+@Component({
+  selector: 'app-nav',
+  templateUrl: './nav.component.html',
+  styleUrls: ['./nav.component.scss']
+})
+export class NavComponent {
+  constructor(protected modal: ModalService) {}
+
+  openModal(event: Event) { 
+    event.preventDefault();
+    this.modal.toggleModel('auth');
+  }
+}
