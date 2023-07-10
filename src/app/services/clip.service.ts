@@ -4,20 +4,26 @@ import {
   DocumentReference, QuerySnapshot } from '@angular/fire/compat/firestore';
 import  IClip  from '../models/clip.model';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
-import { switchMap, of, map, BehaviorSubject, combineLatest } from 'rxjs';
+import { switchMap, of, map, BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { AngularFireStorage } from '@angular/fire/compat/storage';
-
+import {Router, ActivatedRouteSnapshot, Resolve, RouterStateSnapshot} from '@angular/router'
 @Injectable({
   providedIn: 'root'
 })
-export class ClipService {
+export class ClipService implements Resolve<IClip | null> {
 
   clipCollection: AngularFirestoreCollection<IClip>;
+  pageClips: IClip[] = [];
+  pendingReq = false;
 
-  constructor(private db : AngularFirestore,private auth: AngularFireAuth, private storage: AngularFireStorage) {
+  constructor(
+    private db : AngularFirestore,
+    private auth: AngularFireAuth, 
+    private storage: AngularFireStorage,
+    private router: Router
+    ) {
     this.clipCollection = db.collection('clips');
    }
-
    createClip(data: IClip) : Promise<DocumentReference<IClip>> {
     return this.clipCollection.add(data)
    }
@@ -56,4 +62,43 @@ export class ClipService {
      await screenshotRef.delete();
      await this.clipCollection.doc(clip.docID).delete();
    }
+   
+   async getClips() {
+    if(this.pendingReq) {
+      return;
+    }
+
+    this.pendingReq =  true;
+    let query = this.clipCollection.ref.orderBy('timestamp', 'desc').limit(6);
+    const {length} = this.pageClips;
+
+    if(length){
+      const lastDocID = this.pageClips[length-1].docID;
+      const lastDoc = await this.clipCollection.doc(lastDocID)
+      .get().toPromise()
+      query = query.startAfter(lastDoc);
+    }
+    const snapshot = await query.get();
+    snapshot.forEach(doc => {
+      this.pageClips.push({
+        docID:doc.id,
+        ...doc.data()
+      })
+    })
+    this.pendingReq = false;
+   }
+
+   resolve(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): Observable<IClip | null>  {
+     return this.clipCollection.doc(route.params['id']).get().pipe(
+      map(snapshot => {
+        const data = snapshot.data()
+        if(!data){
+          this.router.navigate(['/'])
+          return null;
+        }
+        return data;
+      })
+     )
+   }
+
 }
